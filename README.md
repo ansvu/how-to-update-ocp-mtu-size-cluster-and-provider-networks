@@ -1,6 +1,8 @@
 # how-to-update-ocp-mtu-size-cluster-and-provider-networks
 This Repo will show how to update or migrate the OpenShift MTU Size for cluster and provider networks to Jumbo Frame.
 
+For Provider Network MTU Size update to Jumbo Frame, it will come later. 
+
 ## Prerequisites
 - You installed the OpenShift CLI (oc).
 - You are logged in to the cluster with a user with cluster-admin privileges.
