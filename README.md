@@ -279,7 +279,7 @@ Status:
     172.30.0.0/16
 ```
 
-## Update MTU Size For Provider Networks
+## Update MTU Size For Provider Networks With NMState
 ## Deploy NMState Operator 
 
 - create NMState CR 
@@ -369,6 +369,103 @@ $ nmcli c s
 NAME                 UUID                                  TYPE           DEVICE 
 ens5f0               dc94ad27-48f4-42b9-8cca-a70d82f2de94  ethernet       ens5f0 
 ens5f1               89721b93-4f6e-449a-b5aa-4e91a9fc5fef  ethernet       ens5f1 
+```
+## Update Provider Networks MTU Jumbo Frame with OCP MachineConfig
+```yaml
+99-master-mtu-multiple-interfaces.yaml:
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 99-worker-mtu
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage: {}
+    systemd:
+      units:
+        - contents: |
+            [Unit]
+            Description=Set MTU To Jumbo Frame
+            After=network-online.target
+            [Service]
+            Type=oneshot
+            ExecStart=ip link set ens2f0 mtu 9000 ; ip link set ens2f1 mtu 9000 ; ip link set ens4f0 mtu 9000 ; ip link set ens4f1 mtu 9000
+            [Install]
+            WantedBy=multi-user.target
+          enabled: true
+          name: one-shot-mtu.service
+  osImageURL: ""
+```
+```shellSession
+$ 99-master-mtu-multiple-interfaces.yaml
+$ oc describe node | egrep "hostname|machineconfig"|grep state:
+                    machineconfiguration.openshift.io/state: Done
+
+$ ssh -i ~/.ssh/id_rsa core@192.168.24.111 sudo ip a sh|egrep 'ens4f[0-1]|ens2f[0-1]'
+4: ens2f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UP group default qlen 1000
+6: ens2f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UP group default qlen 1000
+14: ens4f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UP group default qlen 1000
+15: ens4f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UP group default qlen 1000
+```
+
+## Ping Jumbo Frame Testing 
+- Create two test PODs  
+```shellSession
+$ ocj get po
+NAME             READY   STATUS    RESTARTS   AGE
+test-ping-pod1   1/1     Running   0          6m45s
+test-ping-pod2   1/1     Running   0          6m2s
+```
+- Use crictl to container PID ID  
+```shellSession
+$ crictl inspect 399d9960917e7|jq -r '.info.pid'
+131734
+```
+- Check Secondary interface of Multus
+```shellSession 
+$ nsenter -t 131734 -n -- ip a
+2: eth0@if106: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc noqueue state UP group default 
+    link/ether 0a:58:0a:84:00:4f brd ff:ff:ff:ff:ff:ff link-netns be0913f0-ef01-4989-b5b3-3aabfe633297
+    inet 10.132.0.79/23 brd 10.132.1.255 scope global eth0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::858:aff:fe84:4f/64 scope link 
+       valid_lft forever preferred_lft forever
+3: net1@if4: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc noqueue state UP group default 
+    link/ether 4e:65:cc:75:f6:63 brd ff:ff:ff:ff:ff:ff link-netns be0913f0-ef01-4989-b5b3-3aabfe633297
+    inet 192.168.150.1/24 brd 192.168.150.255 scope global net1
+       valid_lft forever preferred_lft forever
+    inet6 fe80::4c65:ccff:fe75:f663/64 scope link 
+       valid_lft forever preferred_lft forever
+```
+- Ping Jumbo Frame Packet Size  
+```shellSession
+$ nsenter -t 131734 -n -- ping -s 8000 192.168.150.2
+PING 192.168.150.2 (192.168.150.2) 8000(8028) bytes of data.
+8008 bytes from 192.168.150.2: icmp_seq=1 ttl=64 time=0.069 ms
+8008 bytes from 192.168.150.2: icmp_seq=2 ttl=64 time=0.066 ms
+8008 bytes from 192.168.150.2: icmp_seq=3 ttl=64 time=0.054 ms
+8008 bytes from 192.168.150.2: icmp_seq=4 ttl=64 time=0.060 ms
+8008 bytes from 192.168.150.2: icmp_seq=5 ttl=64 time=0.063 ms
+8008 bytes from 192.168.150.2: icmp_seq=6 ttl=64 time=0.062 ms
+8008 bytes from 192.168.150.2: icmp_seq=7 ttl=64 time=0.059 ms
+8008 bytes from 192.168.150.2: icmp_seq=8 ttl=64 time=0.062 ms
+8008 bytes from 192.168.150.2: icmp_seq=9 ttl=64 time=0.050 ms
+8008 bytes from 192.168.150.2: icmp_seq=10 ttl=64 time=0.060 ms
+--- 192.168.150.2 ping statistics ---
+10 packets transmitted, 10 received, 0% packet loss, time 9196ms
+rtt min/avg/max/mdev = 0.050/0.060/0.069/0.009 ms
+
+$ nsenter -t 131734 -n -- ping -s 9000 192.168.150.2
+PING 192.168.150.2 (192.168.150.2) 9000(9028) bytes of data.
+9008 bytes from 192.168.150.2: icmp_seq=1 ttl=64 time=0.053 ms
+9008 bytes from 192.168.150.2: icmp_seq=2 ttl=64 time=0.075 ms
+9008 bytes from 192.168.150.2: icmp_seq=3 ttl=64 time=0.083 ms
+--- 192.168.150.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2037ms
+rtt min/avg/max/mdev = 0.053/0.070/0.083/0.014 ms
 ```
 
 ## Troubleshooting
