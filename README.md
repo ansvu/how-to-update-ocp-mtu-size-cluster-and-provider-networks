@@ -281,24 +281,23 @@ Status:
 
 ## Update MTU Size For Provider Networks With NMState
 ## Deploy NMState Operator 
-
 - create NMState CR 
-
+```yaml
 create-nmstate-cr.yaml:
 Version: nmstate.io/v1
 kind: NMState
 metadata:
   name: nmstate
-
+```
+```shellSession
 $ oc apply -f create-nmstate-cr.yaml
-
 $ oc -n openshift-nmstate get po
 NAME                                   READY   STATUS    RESTARTS      AGE
 nmstate-cert-manager-66c975c97-v8pml   1/1     Running   2             111m
 nmstate-handler-h9mng                  1/1     Running   4 (17m ago)   111m
 nmstate-operator-fccffbb5-whvp4        1/1     Running   2             119m
 nmstate-webhook-56d99bcfbb-6r8hl       1/1     Running   2             111m
-
+```
 
 ## Start Update Provider networks interface 
 ### Deploy NMState Operator 
