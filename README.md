@@ -5,6 +5,8 @@ For Provider Network MTU Size update to Jumbo Frame, it will come later.
 
 ## Prerequisites
 - You installed the OpenShift CLI (oc).
+- Butane installed  
+  [butane](https://coreos.github.io/butane/getting-started/)
 - You are logged in to the cluster with a user with cluster-admin privileges.
 - You identified the target MTU for your cluster. The correct MTU varies depending on the network plugin that your cluster uses
 - OVN-Kubernetes: The cluster MTU must be set to 100 less than the lowest hardware MTU value in your cluster.
