@@ -279,6 +279,98 @@ Status:
     172.30.0.0/16
 ```
 
+## Update MTU Size For Provider Networks
+## Deploy NMState Operator 
+
+- create NMState CR 
+
+create-nmstate-cr.yaml:
+Version: nmstate.io/v1
+kind: NMState
+metadata:
+  name: nmstate
+
+$ oc apply -f create-nmstate-cr.yaml
+
+$ oc -n openshift-nmstate get po
+NAME                                   READY   STATUS    RESTARTS      AGE
+nmstate-cert-manager-66c975c97-v8pml   1/1     Running   2             111m
+nmstate-handler-h9mng                  1/1     Running   4 (17m ago)   111m
+nmstate-operator-fccffbb5-whvp4        1/1     Running   2             119m
+nmstate-webhook-56d99bcfbb-6r8hl       1/1     Running   2             111m
+
+
+## Start Update Provider networks interface 
+### Deploy NMState Operator 
+Deploy NMState from Console GUI  
+- create NMState CR
+```yaml
+create-nmstate-cr.yaml:
+Version: nmstate.io/v1
+kind: NMState
+metadata:
+  name: nmstate
+```
+```shellSession
+$ oc apply -f create-nmstate-cr.yaml
+$ oc -n openshift-nmstate get po
+NAME                                   READY   STATUS    RESTARTS      AGE
+nmstate-cert-manager-66c975c97-v8pml   1/1     Running   2             111m
+nmstate-handler-h9mng                  1/1     Running   4 (17m ago)   111m
+nmstate-operator-fccffbb5-whvp4        1/1     Running   2             119m
+nmstate-webhook-56d99bcfbb-6r8hl       1/1     Running   2             111m
+```
+
+## Start Update Provider networks interface 
+Get a list of provider network interfaces from worker or master nodes you want to update the MTU size to Jumbo Frame.
+
+- Prepare NodeNetworkConfigurationPolicy Config 
+```yaml
+$ cat test-two-nmstate.yaml 
+apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+  name: mtu-network-nncp 
+spec:
+  nodeSelector: 
+    node-role.kubernetes.io/master: "" 
+  desiredState:
+    interfaces:
+    - name: ens5f0
+      type: ethernet
+      state: up 
+      ipv4:
+        enabled: false
+      mtu: 9000
+    - name: ens5f1
+      type: ethernet
+      state: up 
+      ipv4:
+        enabled: false
+      mtu: 9000
+```
+```shellSession
+$ oc apply -f test-two-nmstate.yaml
+```
+- Check NNCE Status 
+```shellSession
+$ oc get nnce
+NAME                                                            STATUS      REASON
+nokiavf.hubcluster-1.lab.eng.cert.redhat.com.mtu-network-nncp   Progressing   ConfigurationProgressing
+nokiavf.hubcluster-1.lab.eng.cert.redhat.com.mtu-network-nncp   Available   SuccessfullyConfigured
+```
+- Verify MTU Size from the node  
+```shellSession
+ssh -i ~/.ssh/id_rsa core@192.168.24.111 sudo ip a sh|grep ens5
+18: ens5f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UP group default qlen 1000
+19: ens5f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UP group default qlen 1000
+
+$ nmcli c s
+NAME                 UUID                                  TYPE           DEVICE 
+ens5f0               dc94ad27-48f4-42b9-8cca-a70d82f2de94  ethernet       ens5f0 
+ens5f1               89721b93-4f6e-449a-b5aa-4e91a9fc5fef  ethernet       ens5f1 
+```
+
 ## Troubleshooting
 If something goes wrong, then check this pod logs
 ```shellSession
