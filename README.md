@@ -375,6 +375,7 @@ ens5f1               89721b93-4f6e-449a-b5aa-4e91a9fc5fef  ethernet       ens5f1
 If something goes wrong, then check this pod logs
 ```shellSession
 $ oc -n openshift-ovn-kubernetes logs ovnkube-node-nl8wr -c ovnkube-node -f
+$ oc -n openshift-machine-config-operator logs machine-config-daemon-tkxvx -f
 ```
 
 ## Links
