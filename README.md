@@ -1,8 +1,6 @@
 # how-to-update-ocp-mtu-size-cluster-and-provider-networks
 This Repo will show how to update or migrate the OpenShift MTU Size for cluster and provider networks to Jumbo Frame.
 
-For Provider Network MTU Size update to Jumbo Frame, it will come later. 
-
 ## Prerequisites
 - You installed the OpenShift CLI (oc).
 - Butane installed  
@@ -465,6 +463,16 @@ PING 192.168.150.2 (192.168.150.2) 9000(9028) bytes of data.
 --- 192.168.150.2 ping statistics ---
 3 packets transmitted, 3 received, 0% packet loss, time 2037ms
 rtt min/avg/max/mdev = 0.053/0.070/0.083/0.014 ms
+```
+---
+**Note:**  
+For the update of cluster network MTU size, only the eno5(OAM/MGMT) interface will be included in the NMCONNECTION. When the MTU size of the provider network is updated using the NMState operator method, the ens5fx interfaces will also be included in the NMCONNECTION. However, if the MTU size is updated using the MachineConfig method, the these interfaces will not be included in the NMCONNECTION because we are using the linux set command with the oneshot service type.
+
+```shellSession
+$ ls -lrt /etc/NetworkManager/system-connections/*.nmconnection
+rw------. 1 root root 336 Aug 31 20:14 /etc/NetworkManager/system-connections/eno5.nmconnection
+rw------. 1 root root 252 Sep  6 06:43 /etc/NetworkManager/system-connections/ens5f0.nmconnection
+rw------. 1 root root 252 Sep  6 06:43 /etc/NetworkManager/system-connections/ens5f1.nmconnection
 ```
 
 ## Troubleshooting
